@@ -1,44 +1,34 @@
 (function () {
   const TENANT_NAME = 'recess';
   const scriptPaths = ['polyfills', 'js'];
-  let attempts = 0;
-  const maxAttempts = 150;
+  let hasInjected = false;
 
-  function injectMarianaTek() {
-    console.log("🚀 MarianaTek external loader started");
-
+  function inject() {
     const container = document.querySelector('[data-mariana-integrations="/buy"]');
-    if (!container) {
-      if (attempts < maxAttempts) {
-        attempts++;
-        setTimeout(injectMarianaTek, 100);
-      } else {
-        console.warn("❌ MarianaTek container not found after 15s");
-      }
-      return;
-    }
+    const existingIframe = container?.querySelector("iframe");
 
-    console.log("✅ MarianaTek container found. Injecting scripts...");
+    if (!container) return;
+    if (hasInjected && existingIframe) return; // Already loaded
 
-    // Remove previous iframe
-    const oldIframe = container.querySelector("iframe");
-    if (oldIframe) oldIframe.remove();
+    console.log("✅ Injecting MarianaTek scripts...");
+    hasInjected = true;
 
-    // Remove existing scripts
+    // Clean up
     document.querySelectorAll('script[src*="marianaiframes"]').forEach(el => el.remove());
 
-    // Inject scripts
-    scriptPaths.forEach(path => {
-      const script = document.createElement('script');
+    scriptPaths.forEach((path) => {
+      const script = document.createElement("script");
       script.src = `https://${TENANT_NAME}.marianaiframes.com/${path}`;
-      script.setAttribute('data-timestamp', Date.now().toString());
+      script.setAttribute("data-timestamp", Date.now().toString());
       script.onload = () => console.log(`✅ Loaded: ${script.src}`);
       script.onerror = () => console.error(`❌ Failed: ${script.src}`);
       document.body.appendChild(script);
     });
   }
 
-  injectMarianaTek();
-  window.addEventListener("popstate", injectMarianaTek);
-  window.addEventListener("framer-pageview", injectMarianaTek);
+  // Run immediately
+  inject();
+
+  // Re-run every 500ms (but only injects once per session)
+  setInterval(inject, 500);
 })();
