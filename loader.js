@@ -1,55 +1,53 @@
 (function () {
   const TENANT_NAME = 'recess';
   const scriptPaths = ['polyfills', 'js'];
-  let injected = false;
+  let hasInjected = false;
 
-  function inject() {
-    if (injected) return;
-    if (window.location.pathname !== "/abonnements") return;
+  function containerExists() {
+    const container = document.querySelector('[data-mariana-integrations="/buy"]');
+    return container && window.location.pathname === "/abonnements";
+  }
 
-    // If the container doesn't exist, create it
-    let container = document.querySelector('[data-mariana-integrations="/buy"]');
-    if (!container) {
-      container = document.createElement("div");
-      container.setAttribute("data-mariana-integrations", "/buy");
-      container.style.width = "100%";
-      container.style.minHeight = "500px";
+  function injectScripts() {
+    if (hasInjected || !containerExists()) return;
 
-      // Append it to a known wrapper (like main or body)
-      const target = document.querySelector("main") || document.body;
-      if (target) {
-        target.appendChild(container);
-        console.log("✅ Dynamically added Mariana container");
-      } else {
-        console.warn("❌ Could not find where to place Mariana container");
-        return;
-      }
-    }
+    console.log("✅ Injecting MarianaTek scripts...");
+    hasInjected = true;
 
-    // Remove previous scripts (if any)
+    // Remove old scripts
     document.querySelectorAll('script[src*="marianaiframes"]').forEach(el => el.remove());
 
-    // Inject fresh scripts
+    // Inject scripts
     scriptPaths.forEach(path => {
       const script = document.createElement("script");
       script.src = `https://${TENANT_NAME}.marianaiframes.com/${path}`;
       script.setAttribute("data-timestamp", Date.now().toString());
       script.onload = () => console.log(`✅ Loaded: ${script.src}`);
-      script.onerror = () => console.error(`❌ Failed to load: ${script.src}`);
+      script.onerror = () => console.error(`❌ Failed: ${script.src}`);
       document.body.appendChild(script);
     });
-
-    injected = true;
-    console.log("✅ MarianaTek fully injected");
   }
 
-  const monitor = () => {
-    inject();
-    const observer = new MutationObserver(inject);
-    observer.observe(document.body, { childList: true, subtree: true });
-    window.addEventListener("popstate", inject);
-    window.addEventListener("framer-pageview", inject);
-  };
+  function resetAndCheck() {
+    hasInjected = false; // Allow re-injection
+    const retry = setInterval(() => {
+      if (containerExists()) {
+        injectScripts();
+        clearInterval(retry);
+      }
+    }, 300);
+  }
 
-  setTimeout(monitor, 500);
+  // Initial
+  resetAndCheck();
+
+  // Re-run on route changes
+  window.addEventListener("popstate", resetAndCheck);
+  window.addEventListener("framer-pageview", resetAndCheck);
+
+  // MutationObserver for extra safety (SPA nav)
+  new MutationObserver(resetAndCheck).observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
 })();
