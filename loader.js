@@ -3,21 +3,24 @@
   const scriptPaths = ['polyfills', 'js'];
   let hasInjected = false;
 
-  function containerExists() {
-    const container = document.querySelector('[data-mariana-integrations="/buy"]');
-    return container && window.location.pathname === "/abonnements";
+  function onAbonnementPage() {
+    return window.location.pathname === "/abonnements";
   }
 
-  function injectScripts() {
-    if (hasInjected || !containerExists()) return;
+  function containerReady() {
+    return document.querySelector('[data-mariana-integrations="/buy"]');
+  }
+
+  function inject() {
+    if (hasInjected || !onAbonnementPage() || !containerReady()) return;
 
     console.log("✅ Injecting MarianaTek scripts...");
     hasInjected = true;
 
-    // Remove old scripts
+    // Remove old Mariana scripts (if any)
     document.querySelectorAll('script[src*="marianaiframes"]').forEach(el => el.remove());
 
-    // Inject scripts
+    // Inject fresh scripts
     scriptPaths.forEach(path => {
       const script = document.createElement("script");
       script.src = `https://${TENANT_NAME}.marianaiframes.com/${path}`;
@@ -28,26 +31,30 @@
     });
   }
 
-  function resetAndCheck() {
-    hasInjected = false; // Allow re-injection
-    const retry = setInterval(() => {
-      if (containerExists()) {
-        injectScripts();
-        clearInterval(retry);
+  // Set up a long-running SPA-aware watcher
+  const monitor = () => {
+    const check = () => {
+      if (onAbonnementPage() && containerReady()) {
+        inject();
+      } else {
+        hasInjected = false; // allow re-injection if user comes back
       }
-    }, 300);
-  }
+    };
 
-  // Initial
-  resetAndCheck();
+    // Check every 500ms for up to 60 seconds
+    setInterval(check, 500);
 
-  // Re-run on route changes
-  window.addEventListener("popstate", resetAndCheck);
-  window.addEventListener("framer-pageview", resetAndCheck);
+    // Watch DOM changes as a backup
+    new MutationObserver(check).observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
 
-  // MutationObserver for extra safety (SPA nav)
-  new MutationObserver(resetAndCheck).observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
+    // Listen to Framer nav events
+    window.addEventListener("popstate", check);
+    window.addEventListener("framer-pageview", check);
+  };
+
+  console.log("🚀 Mariana loader loaded and watching for SPA route changes...");
+  monitor();
 })();
