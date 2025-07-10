@@ -1,26 +1,27 @@
 (function () {
   const TENANT_NAME = 'recess';
   const scriptPaths = ['polyfills', 'js'];
-  let injected = false;
+  let lastInjectedPath = "";
 
   function inject() {
+    const path = window.location.pathname;
     const container = document.querySelector('[data-mariana-integrations="/buy"]');
+
+    if (path !== "/abonnements") return;
     if (!container) return;
+    if (container.querySelector("iframe")) return; // already loaded
+    if (lastInjectedPath === path) return;
 
-    // Remove any previous iframe
-    const oldIframe = container.querySelector('iframe');
-    if (oldIframe) {
-      console.log("♻️ Removing old iframe...");
-      oldIframe.remove();
-    }
+    console.log("✅ Injecting MarianaTek for:", path);
+    lastInjectedPath = path;
 
-    // Remove previous scripts
+    // Remove old Mariana scripts
     document.querySelectorAll('script[src*="marianaiframes"]').forEach(el => {
       console.log("♻️ Removing old script:", el.src);
       el.remove();
     });
 
-    // Inject fresh scripts
+    // Inject new scripts
     scriptPaths.forEach(path => {
       const script = document.createElement("script");
       script.src = `https://${TENANT_NAME}.marianaiframes.com/${path}`;
@@ -29,26 +30,18 @@
       script.onerror = () => console.error(`❌ Failed: ${script.src}`);
       document.body.appendChild(script);
     });
-
-    injected = true;
-    console.log("✅ MarianaTek injected");
   }
 
-  // Check every 500ms whether the container has appeared
-  const checkAndInject = () => {
-    const container = document.querySelector('[data-mariana-integrations="/buy"]');
+  // Listen to navigation events
+  const runWatcher = () => {
+    inject();
+    const observer = new MutationObserver(() => inject());
+    observer.observe(document.body, { childList: true, subtree: true });
 
-    if (container && !container.querySelector('iframe')) {
-      inject();
-    }
+    window.addEventListener("popstate", inject);
+    window.addEventListener("framer-pageview", inject);
   };
 
-  // Initial check
-  setTimeout(checkAndInject, 500);
-
-  // Keep checking every half second (for SPA nav)
-  const interval = setInterval(checkAndInject, 500);
-
-  // Optional: stop checking after 30 seconds
-  setTimeout(() => clearInterval(interval), 30000);
+  // Delay start to ensure Framer has mounted
+  setTimeout(runWatcher, 500);
 })();
