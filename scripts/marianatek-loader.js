@@ -6,16 +6,20 @@
   function injectScripts() {
     if (hasInjected) return;
 
-    console.log("📦 Container found, injecting Mariana scripts...");
+    const container = document.querySelector("[data-mariana-integrations]");
+    if (!container) return;
+
+    console.log("✅ Injecting MarianaTek scripts...");
     hasInjected = true;
 
-    // Remove old scripts if any
-    document.querySelectorAll('script[src*="marianaiframes"]').forEach(el => {
+    // Remove existing Mariana scripts
+    document.querySelectorAll('script[src*="marianaiframes"]').forEach((el) => {
       console.log("♻️ Removing old script:", el.src);
       el.remove();
     });
 
-    scriptPaths.forEach(path => {
+    // Inject new scripts
+    scriptPaths.forEach((path) => {
       const script = document.createElement("script");
       script.src = `https://${TENANT_NAME}.marianaiframes.com/${path}`;
       script.setAttribute("data-timestamp", Date.now().toString());
@@ -27,20 +31,25 @@
 
   function watchForContainer() {
     const interval = setInterval(() => {
-      const container = document.querySelector("[data-mariana-integrations]");
-
-      if (container) {
+      const containerExists = document.querySelector("[data-mariana-integrations]");
+      if (containerExists) {
         clearInterval(interval);
         injectScripts();
       }
     }, 300);
 
+    // Optional: stop trying after 30s
     setTimeout(() => clearInterval(interval), 30000);
+
+    // 🔁 Fallback in case polling doesn't trigger
+    setTimeout(injectScripts, 1000);
   }
 
+  // Load once on first page load
   console.log("🚀 Mariana loader active, watching for page + container...");
   watchForContainer();
 
+  // On SPA navigation
   window.addEventListener("popstate", () => {
     hasInjected = false;
     watchForContainer();
