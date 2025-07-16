@@ -7,18 +7,21 @@
     if (hasInjected) return;
 
     const container = document.querySelector("[data-mariana-integrations]");
-    if (!container) return;
+    if (!container) {
+      console.log("⏳ Still no container, skipping injection...");
+      return;
+    }
 
     console.log("✅ Injecting MarianaTek scripts...");
     hasInjected = true;
 
-    // Remove existing Mariana scripts
+    // Remove old versions
     document.querySelectorAll('script[src*="marianaiframes"]').forEach((el) => {
       console.log("♻️ Removing old script:", el.src);
       el.remove();
     });
 
-    // Inject new scripts
+    // Inject new versions
     scriptPaths.forEach((path) => {
       const script = document.createElement("script");
       script.src = `https://${TENANT_NAME}.marianaiframes.com/${path}`;
@@ -29,34 +32,40 @@
     });
   }
 
-  function watchForContainer() {
+  function startWatching() {
+    // Recheck every 500ms
     const interval = setInterval(() => {
-      const containerExists = document.querySelector("[data-mariana-integrations]");
-      if (containerExists) {
+      const container = document.querySelector("[data-mariana-integrations]");
+      if (container) {
+        console.log("👀 Container found, proceeding...");
         clearInterval(interval);
         injectScripts();
       }
-    }, 300);
+    }, 500);
 
-    // Optional: stop trying after 30s
-    setTimeout(() => clearInterval(interval), 30000);
-
-    // 🔁 Fallback in case polling doesn't trigger
-    setTimeout(injectScripts, 1000);
+    // Also try once after 2s, just in case
+    setTimeout(() => {
+      console.log("⏱ Fallback injection after timeout...");
+      injectScripts();
+      clearInterval(interval);
+    }, 2000);
   }
 
-  // Load once on first page load
-  console.log("🚀 Mariana loader active, watching for page + container...");
-  watchForContainer();
+  console.log("🚀 Mariana loader active. Waiting for container...");
 
-  // On SPA navigation
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startWatching);
+  } else {
+    startWatching();
+  }
+
   window.addEventListener("popstate", () => {
     hasInjected = false;
-    watchForContainer();
+    startWatching();
   });
 
   window.addEventListener("framer-pageview", () => {
     hasInjected = false;
-    watchForContainer();
+    startWatching();
   });
 })();
