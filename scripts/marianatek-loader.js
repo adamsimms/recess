@@ -6,19 +6,15 @@
   function injectScripts() {
     if (hasInjected) return;
 
-    const container = document.querySelector("[data-mariana-integrations]");
-    if (!container) return;
-
-    console.log("✅ Injecting MarianaTek scripts for:", container.getAttribute("data-mariana-integrations"));
+    console.log("📦 Container found, injecting Mariana scripts...");
     hasInjected = true;
 
-    // Remove any previously injected Mariana scripts
+    // Remove old scripts if any
     document.querySelectorAll('script[src*="marianaiframes"]').forEach(el => {
       console.log("♻️ Removing old script:", el.src);
       el.remove();
     });
 
-    // Inject updated scripts
     scriptPaths.forEach(path => {
       const script = document.createElement("script");
       script.src = `https://${TENANT_NAME}.marianaiframes.com/${path}`;
@@ -31,22 +27,20 @@
 
   function watchForContainer() {
     const interval = setInterval(() => {
-      const containerExists = document.querySelector("[data-mariana-integrations]");
-      if (containerExists) {
+      const container = document.querySelector("[data-mariana-integrations]");
+
+      if (container) {
         clearInterval(interval);
         injectScripts();
       }
     }, 300);
 
-    // Stop polling after 30 seconds
     setTimeout(() => clearInterval(interval), 30000);
   }
 
-  // Initial load
-  console.log("🚀 Mariana loader active, watching for data-mariana-integrations container...");
+  console.log("🚀 Mariana loader active, watching for page + container...");
   watchForContainer();
 
-  // Recheck on SPA navigations
   window.addEventListener("popstate", () => {
     hasInjected = false;
     watchForContainer();
