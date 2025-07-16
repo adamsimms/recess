@@ -1,24 +1,24 @@
 (function () {
-  const TENANT_NAME = 'recess';
-  const scriptPaths = ['polyfills', 'js'];
+  const TENANT_NAME = "recess";
+  const scriptPaths = ["polyfills", "js"];
   let hasInjected = false;
 
   function injectScripts() {
     if (hasInjected) return;
 
-    const container = document.querySelector('[data-mariana-integrations="/buy"]');
-    if (!container || window.location.pathname !== "/abonnements") return;
+    const container = document.querySelector("[data-mariana-integrations]");
+    if (!container) return;
 
-    console.log("✅ Injecting MarianaTek scripts...");
+    console.log("✅ Injecting MarianaTek scripts for:", container.getAttribute("data-mariana-integrations"));
     hasInjected = true;
 
-    // Remove existing Mariana scripts
+    // Remove any previously injected Mariana scripts
     document.querySelectorAll('script[src*="marianaiframes"]').forEach(el => {
       console.log("♻️ Removing old script:", el.src);
       el.remove();
     });
 
-    // Inject new scripts
+    // Inject updated scripts
     scriptPaths.forEach(path => {
       const script = document.createElement("script");
       script.src = `https://${TENANT_NAME}.marianaiframes.com/${path}`;
@@ -31,23 +31,22 @@
 
   function watchForContainer() {
     const interval = setInterval(() => {
-      const pathOk = window.location.pathname === "/abonnements";
-      const containerExists = document.querySelector('[data-mariana-integrations="/buy"]');
-      if (pathOk && containerExists) {
+      const containerExists = document.querySelector("[data-mariana-integrations]");
+      if (containerExists) {
         clearInterval(interval);
         injectScripts();
       }
     }, 300);
 
-    // Optional: stop trying after 30s
+    // Stop polling after 30 seconds
     setTimeout(() => clearInterval(interval), 30000);
   }
 
-  // Load once on first page load
-  console.log("🚀 Mariana loader active, watching for page + container...");
+  // Initial load
+  console.log("🚀 Mariana loader active, watching for data-mariana-integrations container...");
   watchForContainer();
 
-  // On SPA navigation
+  // Recheck on SPA navigations
   window.addEventListener("popstate", () => {
     hasInjected = false;
     watchForContainer();
